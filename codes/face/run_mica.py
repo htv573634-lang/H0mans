@@ -3,6 +3,18 @@ import argparse
 import glob
 import subprocess
 import shutil
+import urllib.request
+
+def download_file(url, dest_path):
+    """Downloads a file if it doesn't already exist."""
+    if not os.path.exists(dest_path):
+        print(f"Downloading missing file: {dest_path}")
+        try:
+            urllib.request.urlretrieve(url, dest_path)
+            print("Download successful.")
+        except Exception as e:
+            print(f"Failed to download {url}. Error: {e}")
+            raise
 
 def find_input_image(input_dir):
     extensions = ['*.jpg', '*.jpeg', '*.png', '*.bmp']
@@ -28,21 +40,22 @@ def main():
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
+    os.makedirs("models", exist_ok=True)
     input_image_path = find_input_image(args.input_dir)
+
+    # Ensure we have the required models, downloading them if necessary
+    base_url = "https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1"
+    download_file(f"{base_url}/generic_model.pkl", "models/generic_model.pkl")
+    download_file(f"{base_url}/female_model.pkl", "models/female_model.pkl")
 
     # MICA needs the FLAME2020 .pkl files in ITS OWN data directory
     mica_data_dir = os.path.join(args.mica_path, "data", "FLAME2020")
     os.makedirs(mica_data_dir, exist_ok=True)
     
-    # Copy female model
+    # Copy models to MICA's internal folder
     shutil.copy("models/female_model.pkl", os.path.join(mica_data_dir, "female_model.pkl"))
-    
-    # Copy generic model (Required by MICA's masking.py)
-    if os.path.exists("models/generic_model.pkl"):
-        shutil.copy("models/generic_model.pkl", os.path.join(mica_data_dir, "generic_model.pkl"))
-        print("Successfully copied generic_model.pkl to MICA data folder.")
-    else:
-        print("Warning: generic_model.pkl not found. MICA will likely fail.")
+    shutil.copy("models/generic_model.pkl", os.path.join(mica_data_dir, "generic_model.pkl"))
+    print("Successfully copied models to MICA data folder.")
 
     print("Running MICA Inference...")
     
