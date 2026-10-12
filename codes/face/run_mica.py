@@ -33,16 +33,23 @@ def main():
     # MICA needs the FLAME2020 .pkl file in a specific directory
     os.makedirs("data/pretrained/FLAME2020", exist_ok=True)
     shutil.copy("models/female_model.pkl", "data/pretrained/FLAME2020/female_model.pkl")
+    shutil.copy("models/generic_model.pkl", "data/pretrained/FLAME2020/generic_model.pkl")
 
     print("Running MICA Inference...")
+    
+    # UPDATED: Using short flags -i, -o, -m as required by demo.py
     mica_demo_cmd = [
         "python", os.path.join(args.mica_path, "demo.py"),
-        "--input_path", os.path.abspath(input_image_path),
-        "--output_path", os.path.abspath(args.output_dir),
-        "--model_path", os.path.abspath(args.model_path)
+        "-i", os.path.abspath(input_image_path),
+        "-o", os.path.abspath(args.output_dir),
+        "-m", os.path.abspath(args.model_path)
     ]
     
     print(f"Executing: {' '.join(mica_demo_cmd)}")
+    print("Checking if FLAME models exist:")
+    print(os.listdir("data/pretrained/FLAME2020"))
+    print("Checking if InsightFace models exist:")
+    print(os.listdir(os.path.expanduser("~/.insightface/models")))
     
     try:
         # Capture output so we can see the exact error if it fails
