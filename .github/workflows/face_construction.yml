@@ -1,1 +1,45 @@
+name: Face Construction Pipeline
 
+on:
+  workflow_dispatch: # Manual button to run it
+  push:
+    paths:
+      - 'Inputs/face/**' # Auto-runs whenever you upload a new image to this folder!
+
+jobs:
+  build-face:
+    runs-on: ubuntu-latest 
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Download Models from Release
+        run: |
+          mkdir -p models
+          echo "Downloading Female Model..."
+          curl -L -o models/female_model.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/female_model.pkl
+          echo "Downloading FLAME Masks..."
+          curl -L -o models/FLAME_masks.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/FLAME_masks.pkl
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # We will add MICA and EMOCA dependencies here later
+          pip install torch torchvision numpy opencv-python
+
+      - name: Run Face Construction Script
+        run: |
+          # We pass the folder, not the specific file name
+          python codes/face/run_mica.py --input_dir Inputs/face --output_dir output
+
+      - name: Upload Output Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: face-mesh-output
+          path: output/
