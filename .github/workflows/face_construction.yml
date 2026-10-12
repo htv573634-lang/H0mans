@@ -22,18 +22,21 @@ jobs:
       - name: Download Models from Release
         run: |
           mkdir -p models
+          echo "Downloading Female Model..."
           curl -L -o models/female_model.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/female_model.pkl
+          echo "Downloading Generic Model..."
+          curl -L -o models/generic_model.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/generic_model.pkl
+          echo "Downloading FLAME Masks..."
           curl -L -o models/FLAME_masks.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/FLAME_masks.pkl
+          echo "Downloading MICA Weights..."
           curl -L -o models/mica.tar https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/mica.tar
 
       - name: Download InsightFace Models
         run: |
           mkdir -p ~/.insightface/models
-          # Download buffalo_l
-          curl -L -o /tmp/buffalo_l.zip https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip
+          wget -q https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip -O /tmp/buffalo_l.zip
           unzip -q /tmp/buffalo_l.zip -d ~/.insightface/models/
-          # Download antelopev2
-          curl -L -o /tmp/antelopev2.zip https://github.com/deepinsight/insightface/releases/download/v0.7/antelopev2.zip
+          wget -q https://github.com/deepinsight/insightface/releases/download/v0.7/antelopev2.zip -O /tmp/antelopev2.zip
           unzip -q /tmp/antelopev2.zip -d ~/.insightface/models/
 
       - name: Clone MICA Repository
@@ -43,6 +46,9 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
+          # Install chumpy separately with build isolation disabled to fix the pip error
+          pip install chumpy==0.70 --no-build-isolation
+          # Now install all other dependencies from our custom list
           pip install -r requirements.txt
 
       - name: Run Face Construction Script
