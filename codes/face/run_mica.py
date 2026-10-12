@@ -30,21 +30,23 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
     input_image_path = find_input_image(args.input_dir)
 
-    # MICA needs the FLAME2020 .pkl file in a specific directory
-    os.makedirs("data/pretrained/FLAME2020", exist_ok=True)
+    # MICA needs the FLAME2020 .pkl files in ITS OWN data directory
+    mica_data_dir = os.path.join(args.mica_path, "data", "FLAME2020")
+    os.makedirs(mica_data_dir, exist_ok=True)
     
-    # Copy female model (Required)
-    shutil.copy("models/female_model.pkl", "data/pretrained/FLAME2020/female_model.pkl")
+    # Copy female model
+    shutil.copy("models/female_model.pkl", os.path.join(mica_data_dir, "female_model.pkl"))
     
-    # Copy generic model (Optional - if it exists)
+    # Copy generic model (Required by MICA's masking.py)
     if os.path.exists("models/generic_model.pkl"):
-        shutil.copy("models/generic_model.pkl", "data/pretrained/FLAME2020/generic_model.pkl")
+        shutil.copy("models/generic_model.pkl", os.path.join(mica_data_dir, "generic_model.pkl"))
+        print("Successfully copied generic_model.pkl to MICA data folder.")
     else:
-        print("Warning: generic_model.pkl not found. Proceeding with female model only.")
+        print("Warning: generic_model.pkl not found. MICA will likely fail.")
 
     print("Running MICA Inference...")
     
-    # UPDATED: Using short flags -i, -o, -m as required by MICA's demo.py
+    # Using short flags -i, -o, -m as required by MICA's demo.py
     mica_demo_cmd = [
         "python", os.path.join(args.mica_path, "demo.py"),
         "-i", os.path.abspath(input_image_path),
@@ -53,13 +55,8 @@ def main():
     ]
     
     print(f"Executing: {' '.join(mica_demo_cmd)}")
-    print("Checking if FLAME models exist:")
-    print(os.listdir("data/pretrained/FLAME2020"))
-    print("Checking if InsightFace models exist:")
-    print(os.listdir(os.path.expanduser("~/.insightface/models")))
     
     try:
-        # Capture output so we can see the exact error if it fails
         result = subprocess.run(mica_demo_cmd, capture_output=True, text=True)
         
         print("--- MICA STDOUT ---")
@@ -85,7 +82,6 @@ def main():
 
     except Exception as e:
         print(f"CRITICAL ERROR: {e}")
-        # Create a placeholder file so the Action doesn't fail completely
         output_path = os.path.join(args.output_dir, "female_face_mesh.obj")
         with open(output_path, "w") as f:
             f.write(f"# Error during MICA processing: {e}\n")
