@@ -1,0 +1,12 @@
+torch
+torchvision
+pytorch-lightning
+opencv-python
+numpy
+scikit-image
+yacs
+trimesh
+gdown
+insightface
+face-alignment
+scipy
