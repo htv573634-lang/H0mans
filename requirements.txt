@@ -10,3 +10,4 @@ gdown
 insightface
 face-alignment
 scipy
+loguru
