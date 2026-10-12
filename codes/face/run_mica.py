@@ -32,12 +32,19 @@ def main():
 
     # MICA needs the FLAME2020 .pkl file in a specific directory
     os.makedirs("data/pretrained/FLAME2020", exist_ok=True)
+    
+    # Copy female model (Required)
     shutil.copy("models/female_model.pkl", "data/pretrained/FLAME2020/female_model.pkl")
-    shutil.copy("models/generic_model.pkl", "data/pretrained/FLAME2020/generic_model.pkl")
+    
+    # Copy generic model (Optional - if it exists)
+    if os.path.exists("models/generic_model.pkl"):
+        shutil.copy("models/generic_model.pkl", "data/pretrained/FLAME2020/generic_model.pkl")
+    else:
+        print("Warning: generic_model.pkl not found. Proceeding with female model only.")
 
     print("Running MICA Inference...")
     
-    # UPDATED: Using short flags -i, -o, -m as required by demo.py
+    # UPDATED: Using short flags -i, -o, -m as required by MICA's demo.py
     mica_demo_cmd = [
         "python", os.path.join(args.mica_path, "demo.py"),
         "-i", os.path.abspath(input_image_path),
