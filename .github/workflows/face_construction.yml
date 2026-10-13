@@ -47,10 +47,26 @@ jobs:
 
       - name: Patch DECA for CPU & Newer APIs
         run: |
+          echo "=== Patch 1: Enum names ==="
           find DECA -name "*.py" -exec sed -i 's/LandmarksType\._2D/LandmarksType.TWO_D/g' {} \;
           find DECA -name "*.py" -exec sed -i 's/LandmarksType\._3D/LandmarksType.THREE_D/g' {} \;
+          
+          echo "=== Patch 2: FaceAlignment CPU device ==="
           sed -i "s/face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False)/face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, device='cpu')/g" DECA/decalib/datasets/detectors.py
+          
+          echo "=== Patch 3: np.load allow_pickle ==="
           find DECA -name "*.py" -exec sed -i "s/np\.load(tex_path)/np.load(tex_path, allow_pickle=True)/g" {} \;
+          
+          echo "=== Patch 4: torch.load map_location=cpu ==="
+          # This is the fix for the CUDA deserialize error
+          find DECA -name "*.py" -exec sed -i "s/torch\.load(model_path)/torch.load(model_path, map_location='cpu')/g" {} \;
+          # Broad sweep for any torch.load without map_location
+          find DECA -name "*.py" -exec sed -i "s/torch\.load(\([^,)]*\))/torch.load(\1, map_location='cpu')/g" {} \;
+          # Fix any double-added map_location (in case it was already specified)
+          find DECA -name "*.py" -exec sed -i "s/map_location='cpu', map_location='cpu'/map_location='cpu'/g" {} \;
+          find DECA -name "*.py" -exec sed -i 's/map_location="cpu", map_location="cpu"/map_location="cpu"/g' {} \;
+          
+          echo "=== Patch 5: Device strings ==="
           find DECA -name "*.py" -exec sed -i "s|torch.device('cuda:0')|torch.device('cpu')|g" {} \;
           find DECA -name "*.py" -exec sed -i 's|torch.device("cuda:0")|torch.device("cpu")|g' {} \;
           find DECA -name "*.py" -exec sed -i "s|torch.device('cuda')|torch.device('cpu')|g" {} \;
@@ -58,6 +74,9 @@ jobs:
           find DECA -name "*.py" -exec sed -i "s|= *'cuda'|= 'cpu'|g" {} \;
           find DECA -name "*.py" -exec sed -i 's|= *"cuda"|= "cpu"|g' {} \;
           find DECA -name "*.py" -exec sed -i "s|\.cuda()|.cpu()|g" {} \;
+          
+          echo "=== Verification: torch.load in deca.py ==="
+          grep -n "torch.load" DECA/decalib/deca.py
 
       - name: Download Data Files
         run: |
