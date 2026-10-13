@@ -23,14 +23,16 @@ def find_input_image(input_dir):
     return selected_image
 
 
-def postprocess_mesh(input_path, output_path, subdivide_passes=1):
+def postprocess_mesh(input_path, output_path, subdivide_passes=1, scale_factor=1000.0):
     """
-    Safe mesh processing:
-      1. Merge duplicate vertices (with tolerance) so trimesh treats it as one surface
+    Full post-processing pipeline:
+      1. Merge duplicate vertices
       2. Remove degenerate/duplicate faces
-      3. Subdivide to add geometric detail
-      4. Recompute vertex normals for smooth shading
-    NO Laplacian smoothing (it was collapsing the mesh).
+      3. Subdivide for smooth surface
+      4. Fill holes to make watertight (caps neck, eyes, mouth)
+      5. Fix normals (consistent outward orientation)
+      6. Scale up (meters -> millimeters for print-ready output)
+      7. Recompute vertex normals for smooth shading
     """
     print("=" * 60)
     print("POST-PROCESSING MESH")
@@ -40,15 +42,13 @@ def postprocess_mesh(input_path, output_path, subdivide_passes=1):
     
     mesh = trimesh.load(input_path, process=False, force='mesh')
     print(f"Loaded:   {len(mesh.vertices)} verts, {len(mesh.faces)} faces")
-    print(f"Bounds:   min={mesh.bounds[0]}, max={mesh.bounds[1]}")
-    print(f"Extents:  {mesh.extents}")
+    print(f"Extents:  {mesh.extents} (assumed meters)")
     
-    # Merge duplicate vertices - DECA splits vertices at UV seams.
-    # Use a tiny tolerance so only exact duplicates merge.
+    # 1. Merge duplicate vertices
     mesh.merge_vertices(merge_tex=True, merge_norm=True)
     print(f"Merged:   {len(mesh.vertices)} verts, {len(mesh.faces)} faces")
     
-    # Remove degenerate faces (zero-area triangles that break viewers)
+    # 2. Remove degenerate faces
     try:
         mesh.update_faces(mesh.nondegenerate_faces())
         mesh.update_faces(mesh.unique_faces())
@@ -57,7 +57,7 @@ def postprocess_mesh(input_path, output_path, subdivide_passes=1):
     except Exception as e:
         print(f"Cleanup skipped: {e}")
     
-    # Subdivide using trimesh's loop subdivision (preserves shape better than default)
+    # 3. Subdivide
     for i in range(subdivide_passes):
         try:
             mesh = mesh.subdivide()
@@ -66,20 +66,55 @@ def postprocess_mesh(input_path, output_path, subdivide_passes=1):
             print(f"Subdivision {i+1} failed: {e}, stopping")
             break
     
-    # Recompute vertex normals -> smooth shading in every viewer
+    # 4. Fill holes to make watertight
+    print("--- Filling holes to make mesh watertight ---")
+    try:
+        # Get boundary edges and fill them
+        mesh.fill_holes()
+        print(f"After fill_holes: {len(mesh.vertices)} verts, {len(mesh.faces)} faces")
+        
+        # Check if watertight now
+        if mesh.is_watertight:
+            print("MESH IS WATERTIGHT ✓")
+        else:
+            print(f"Still not watertight - trying more aggressive repair...")
+            # Try to repair with a thicker approach
+            mesh = trimesh.repair.fill_holes(mesh)
+            if mesh.is_watertight:
+                print("MESH IS NOW WATERTIGHT ✓")
+            else:
+                print("Could not make fully watertight - mesh will still export")
+    except Exception as e:
+        print(f"Hole filling failed: {e}")
+    
+    # 5. Fix normals
+    try:
+        trimesh.repair.fix_normals(mesh)
+        trimesh.repair.fix_inversion(mesh)
+        print("Normals fixed (outward orientation)")
+    except Exception as e:
+        print(f"Normal fixing failed: {e}")
+    
+    # 6. Scale to millimeters (m -> mm)
+    print(f"--- Scaling by {scale_factor}x (meters to millimeters) ---")
+    mesh.apply_scale(scale_factor)
+    print(f"New extents: {mesh.extents} (mm)")
+    
+    # 7. Recompute vertex normals for smooth shading
     try:
         _ = mesh.vertex_normals
         print("Vertex normals recomputed")
     except Exception as e:
         print(f"Normal recompute failed: {e}")
     
-    # Validate before export
+    # Validate
     print(f"Final bounds: min={mesh.bounds[0]}, max={mesh.bounds[1]}")
-    print(f"Final extents: {mesh.extents}")
-    print(f"Final area: {mesh.area}")
+    print(f"Final extents: {mesh.extents} mm")
+    print(f"Final area: {mesh.area} mm^2")
+    print(f"Watertight: {mesh.is_watertight}")
     
     if mesh.area < 1e-6:
-        raise RuntimeError("Mesh area is zero - mesh is degenerate, refusing to export")
+        raise RuntimeError("Mesh area is zero - refusing to export")
     
     mesh.export(output_path)
     print(f"SUCCESS: {output_path}")
@@ -92,8 +127,9 @@ def main():
     parser.add_argument("--input_dir", type=str, required=True)
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--deca_path", type=str, required=True)
-    parser.add_argument("--subdivide", type=int, default=1,
-                        help="Number of subdivision passes (0=raw, 1=smooth, 2=very dense)")
+    parser.add_argument("--subdivide", type=int, default=1)
+    parser.add_argument("--scale", type=float, default=1000.0,
+                        help="Scale factor (1000 = meters to mm)")
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -128,7 +164,6 @@ def main():
         if result.returncode != 0:
             raise RuntimeError(f"DECA failed with exit code {result.returncode}")
 
-        # Locate DECA's raw OBJ
         base_name = os.path.splitext(os.path.basename(input_image_path))[0]
         obj_files = glob.glob(
             os.path.join(args.deca_path, "**", f"{base_name}*", "*.obj"),
@@ -141,18 +176,20 @@ def main():
         raw_obj = obj_files[0]
         print(f"Found DECA raw output: {raw_obj}")
         
-        # Save the raw mesh (always good to keep as backup)
         raw_output = os.path.join(args.output_dir, "female_face_mesh_raw.obj")
         shutil.copy(raw_obj, raw_output)
         print(f"Saved raw mesh: {raw_output}")
         
-        # Post-process with safe settings
         final_output = os.path.join(args.output_dir, "female_face_mesh.obj")
-        postprocess_mesh(raw_obj, final_output, subdivide_passes=args.subdivide)
+        postprocess_mesh(
+            raw_obj,
+            final_output,
+            subdivide_passes=args.subdivide,
+            scale_factor=args.scale
+        )
 
     except Exception as e:
         print(f"CRITICAL ERROR: {e}")
-        # Fallback: copy raw mesh as final output if processing fails
         try:
             base_name = os.path.splitext(os.path.basename(input_image_path))[0]
             obj_files = glob.glob(
