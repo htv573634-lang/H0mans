@@ -58,11 +58,8 @@ jobs:
           find DECA -name "*.py" -exec sed -i "s/np\.load(tex_path)/np.load(tex_path, allow_pickle=True)/g" {} \;
           
           echo "=== Patch 4: torch.load map_location=cpu ==="
-          # This is the fix for the CUDA deserialize error
           find DECA -name "*.py" -exec sed -i "s/torch\.load(model_path)/torch.load(model_path, map_location='cpu')/g" {} \;
-          # Broad sweep for any torch.load without map_location
           find DECA -name "*.py" -exec sed -i "s/torch\.load(\([^,)]*\))/torch.load(\1, map_location='cpu')/g" {} \;
-          # Fix any double-added map_location (in case it was already specified)
           find DECA -name "*.py" -exec sed -i "s/map_location='cpu', map_location='cpu'/map_location='cpu'/g" {} \;
           find DECA -name "*.py" -exec sed -i 's/map_location="cpu", map_location="cpu"/map_location="cpu"/g' {} \;
           
@@ -74,9 +71,6 @@ jobs:
           find DECA -name "*.py" -exec sed -i "s|= *'cuda'|= 'cpu'|g" {} \;
           find DECA -name "*.py" -exec sed -i 's|= *"cuda"|= "cpu"|g' {} \;
           find DECA -name "*.py" -exec sed -i "s|\.cuda()|.cpu()|g" {} \;
-          
-          echo "=== Verification: torch.load in deca.py ==="
-          grep -n "torch.load" DECA/decalib/deca.py
 
       - name: Download Data Files
         run: |
@@ -104,7 +98,11 @@ jobs:
           CUDA_VISIBLE_DEVICES: ""
           MPLBACKEND: "Agg"
         run: |
-          python codes/face/run_deca.py --input_dir Inputs/face --output_dir output --deca_path ./DECA
+          python codes/face/run_deca.py \
+            --input_dir Inputs/face \
+            --output_dir output \
+            --deca_path ./DECA \
+            --subdivide 2
 
       - name: Upload Output Artifact
         uses: actions/upload-artifact@v4
