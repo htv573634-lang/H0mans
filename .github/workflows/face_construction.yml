@@ -62,22 +62,32 @@ jobs:
           find DECA -name "*.py" -exec sed -i 's/LandmarksType\._3D/LandmarksType.THREE_D/g' {} \;
           
           echo "=== Patching FaceAlignment to use CPU ==="
-          # Add device='cpu' to the FaceAlignment constructor call in detectors.py
           sed -i "s/face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False)/face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, device='cpu')/g" DECA/decalib/datasets/detectors.py
           
-          echo "=== Patching all cuda references to cpu ==="
-          find DECA -name "*.py" -exec sed -i "s|torch.device('cuda')|torch.device('cpu')|g" {} \;
-          find DECA -name "*.py" -exec sed -i 's|torch.device("cuda")|torch.device("cpu")|g' {} \;
+          echo "=== Patching ALL cuda references to cpu (comprehensive) ==="
+          # Torch device calls
           find DECA -name "*.py" -exec sed -i "s|torch.device('cuda:0')|torch.device('cpu')|g" {} \;
           find DECA -name "*.py" -exec sed -i 's|torch.device("cuda:0")|torch.device("cpu")|g' {} \;
+          find DECA -name "*.py" -exec sed -i "s|torch.device('cuda')|torch.device('cpu')|g" {} \;
+          find DECA -name "*.py" -exec sed -i 's|torch.device("cuda")|torch.device("cpu")|g' {} \;
+          # Bare string device assignments
+          find DECA -name "*.py" -exec sed -i "s|= *'cuda:0'|= 'cpu'|g" {} \;
+          find DECA -name "*.py" -exec sed -i 's|= *"cuda:0"|= "cpu"|g' {} \;
+          find DECA -name "*.py" -exec sed -i "s|= *'cuda'|= 'cpu'|g" {} \;
+          find DECA -name "*.py" -exec sed -i 's|= *"cuda"|= "cpu"|g' {} \;
+          # Argparse defaults
+          find DECA -name "*.py" -exec sed -i "s|default='cuda'|default='cpu'|g" {} \;
+          find DECA -name "*.py" -exec sed -i 's|default="cuda"|default="cpu"|g' {} \;
+          # Tensor .cuda() method calls
           find DECA -name "*.py" -exec sed -i "s|\.cuda()|.cpu()|g" {} \;
+          # Any remaining cuda:0 / cuda in string form (broad sweep)
           find DECA -name "*.py" -exec sed -i "s|'cuda:0'|'cpu'|g" {} \;
           find DECA -name "*.py" -exec sed -i 's|"cuda:0"|"cpu"|g' {} \;
           
-          echo "=== Verification: detectors.py ==="
-          grep -n "FaceAlignment\|device" DECA/decalib/datasets/detectors.py
-          echo "=== Verification: any remaining cuda references in demo ==="
-          grep -n "cuda" DECA/demos/demo_reconstruct.py || echo "No cuda in demo"
+          echo "=== Verification: device line in demo_reconstruct.py ==="
+          grep -n "device" DECA/demos/demo_reconstruct.py | head -10
+          echo "=== Verification: remaining cuda references across DECA ==="
+          grep -rn "'cuda'\|\"cuda\"\|cuda:0" DECA --include="*.py" | head -20 || echo "No bare cuda references found"
 
       - name: Download Pre-trained Models
         run: |
