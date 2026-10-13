@@ -55,21 +55,29 @@ jobs:
         run: |
           git clone https://github.com/YadiraF/DECA.git
 
-      - name: Patch DECA for Newer face-alignment API
+      - name: Patch DECA for CPU & Newer APIs
         run: |
-          echo "=== Before patch ==="
-          grep -n "LandmarksType" DECA/decalib/datasets/detectors.py || echo "No matches"
-          
-          # Patch: replace old enum names with new ones
-          sed -i 's/LandmarksType\._2D/LandmarksType.TWO_D/g' DECA/decalib/datasets/detectors.py
-          sed -i 's/LandmarksType\._3D/LandmarksType.THREE_D/g' DECA/decalib/datasets/detectors.py
-          
-          # Also patch anywhere else in DECA that might use the old names
+          echo "=== Patching enum names ==="
           find DECA -name "*.py" -exec sed -i 's/LandmarksType\._2D/LandmarksType.TWO_D/g' {} \;
           find DECA -name "*.py" -exec sed -i 's/LandmarksType\._3D/LandmarksType.THREE_D/g' {} \;
           
-          echo "=== After patch ==="
-          grep -n "LandmarksType" DECA/decalib/datasets/detectors.py || echo "No matches"
+          echo "=== Patching FaceAlignment to use CPU ==="
+          # Add device='cpu' to the FaceAlignment constructor call in detectors.py
+          sed -i "s/face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False)/face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, device='cpu')/g" DECA/decalib/datasets/detectors.py
+          
+          echo "=== Patching all cuda references to cpu ==="
+          find DECA -name "*.py" -exec sed -i "s|torch.device('cuda')|torch.device('cpu')|g" {} \;
+          find DECA -name "*.py" -exec sed -i 's|torch.device("cuda")|torch.device("cpu")|g' {} \;
+          find DECA -name "*.py" -exec sed -i "s|torch.device('cuda:0')|torch.device('cpu')|g" {} \;
+          find DECA -name "*.py" -exec sed -i 's|torch.device("cuda:0")|torch.device("cpu")|g' {} \;
+          find DECA -name "*.py" -exec sed -i "s|\.cuda()|.cpu()|g" {} \;
+          find DECA -name "*.py" -exec sed -i "s|'cuda:0'|'cpu'|g" {} \;
+          find DECA -name "*.py" -exec sed -i 's|"cuda:0"|"cpu"|g' {} \;
+          
+          echo "=== Verification: detectors.py ==="
+          grep -n "FaceAlignment\|device" DECA/decalib/datasets/detectors.py
+          echo "=== Verification: any remaining cuda references in demo ==="
+          grep -n "cuda" DECA/demos/demo_reconstruct.py || echo "No cuda in demo"
 
       - name: Download Pre-trained Models
         run: |
