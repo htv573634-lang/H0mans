@@ -1,4 +1,4 @@
-name: Face Construction Pipeline
+name: Face Construction Pipeline (DECA)
 
 on:
   workflow_dispatch:
@@ -23,24 +23,32 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          # Verify pytorch3d is installed
+          python -c "import pytorch3d; print('pytorch3d version:', pytorch3d.__version__)"
 
-      - name: Clone 3DDFA_v2 Repository
+      - name: Clone DECA Repository
         run: |
-          git clone https://github.com/cleardusk/3DDFA_V2.git
+          git clone https://github.com/YadiraF/DECA.git
 
-      - name: Build 3DDFA_v2 Extensions
+      - name: Download Pre-trained Models
         run: |
-          cd 3DDFA_V2
-          sh ./build.sh
-
-      - name: Download Pre-trained Weights
-        run: |
-          cd 3DDFA_V2
-          sh ./download_weights.sh
+          cd DECA
+          # Create data directory
+          mkdir -p data
+          # Download the DECA trained model (using gdown for Google Drive)
+          pip install gdown
+          gdown --id 1rp8kdyLPvErw2dTmqtjISRVvQLj6Yzje -O data/deca_model.tar
+          # Download FLAME 2020 model (the generic one)
+          # Note: You may need to download this manually and upload it, as it requires registration
+          # For now, we'll try to download a public version
+          wget -q -O data/generic_model.pkl "https://github.com/YadiraF/DECA/raw/master/data/generic_model.pkl" || echo "FLAME model not found, you may need to upload it manually"
 
       - name: Run Face Construction Script
+        env:
+          CUDA_VISIBLE_DEVICES: ""
+          MPLBACKEND: "Agg"
         run: |
-          python codes/face/run_3ddfa.py --input_dir Inputs/face --output_dir output --ddfa_path ./3DDFA_V2
+          python codes/face/run_deca.py --input_dir Inputs/face --output_dir output --deca_path ./DECA
 
       - name: Upload Output Artifact
         uses: actions/upload-artifact@v4
