@@ -63,13 +63,18 @@ jobs:
         run: |
           cd DECA
           mkdir -p data
+          
           echo "=== Downloading DECA model weights ==="
-          gdown --id 1rp8kdyLPvErw2dTmqtjISRVvQLj6Yzje -O data/deca_model.tar
+          gdown 1rp8kdyLPvErw2dTmqtjISRVvQLj6Yzje -O data/deca_model.tar
+          
           echo "=== Downloading FLAME_albedo_from_BFM.npz ==="
           curl -L -o data/FLAME_albedo_from_BFM.npz "https://huggingface.co/camenduru/BFM/resolve/main/FLAME_albedo_from_BFM.npz"
+          
           echo "=== Downloading FLAME models from your release ==="
           curl -L -o data/generic_model.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/generic_model.pkl
           curl -L -o data/female_model.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/female_model.pkl
+          
+          echo "=== Data directory contents ==="
           ls -la data/
 
       - name: Verify FLAME Albedo File
