@@ -46,10 +46,14 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          # Install chumpy separately with build isolation disabled to fix the pip error
+          # STEP 1: Install PyTorch & torchvision FIRST (before chumpy downgrades numpy)
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          # STEP 2: Install chumpy with build isolation disabled
           pip install chumpy==0.70 --no-build-isolation
-          # Now install all other dependencies from our custom list
+          # STEP 3: Install remaining dependencies
           pip install -r requirements.txt
+          # STEP 4: Verify torchvision is actually installed
+          python -c "import torchvision; print('Torchvision version:', torchvision.__version__)"
 
       - name: Run Face Construction Script
         run: |
