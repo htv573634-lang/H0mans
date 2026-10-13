@@ -62,6 +62,11 @@ jobs:
           echo "=== Patching FaceAlignment to use CPU ==="
           sed -i "s/face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False)/face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, device='cpu')/g" DECA/decalib/datasets/detectors.py
           
+          echo "=== Patching np.load to allow_pickle=True (fixes FLAME albedo load) ==="
+          # This is the fix for: ValueError: Cannot load file containing pickled data when allow_pickle=False
+          find DECA -name "*.py" -exec sed -i "s/np\.load(tex_path)/np.load(tex_path, allow_pickle=True)/g" {} \;
+          find DECA -name "*.py" -exec sed -i "s/np\.load(\(.*\)\.npz)/np.load(\1.npz, allow_pickle=True)/g" {} \;
+          
           echo "=== Patching ALL cuda references to cpu ==="
           find DECA -name "*.py" -exec sed -i "s|torch.device('cuda:0')|torch.device('cpu')|g" {} \;
           find DECA -name "*.py" -exec sed -i 's|torch.device("cuda:0")|torch.device("cpu")|g' {} \;
@@ -76,6 +81,9 @@ jobs:
           find DECA -name "*.py" -exec sed -i "s|\.cuda()|.cpu()|g" {} \;
           find DECA -name "*.py" -exec sed -i "s|'cuda:0'|'cpu'|g" {} \;
           find DECA -name "*.py" -exec sed -i 's|"cuda:0"|"cpu"|g' {} \;
+          
+          echo "=== Verification: np.load in FLAME.py ==="
+          grep -n "np.load" DECA/decalib/models/FLAME.py
 
       - name: Download All Required Data Files
         run: |
@@ -85,17 +93,13 @@ jobs:
           echo "=== Downloading DECA model weights ==="
           gdown --id 1rp8kdyLPvErw2dTmqtjISRVvQLj6Yzje -O data/deca_model.tar || echo "deca_model.tar download failed"
           
-          echo "=== Downloading FLAME_albedo_from_BFM.npz (multiple fallback sources) ==="
-          # Fallback 1: DECA's GitHub raw
+          echo "=== Downloading FLAME_albedo_from_BFM.npz ==="
           curl -L -o data/FLAME_albedo_from_BFM.npz \
             "https://github.com/YadiraF/DECA/raw/master/data/FLAME_albedo_from_BFM.npz" || echo "Source 1 failed"
           
-          # Verify it's a real file (not an HTML error page)
           FILE_SIZE=$(stat -c%s "data/FLAME_albedo_from_BFM.npz" 2>/dev/null || echo 0)
           if [ "$FILE_SIZE" -lt 1000000 ]; then
-            echo "File too small ($FILE_SIZE bytes) - trying alternative source"
-            
-            # Fallback 2: Your GitHub release (if you upload it)
+            echo "File too small ($FILE_SIZE bytes) - trying your release"
             curl -L -o data/FLAME_albedo_from_BFM.npz \
               "https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/FLAME_albedo_from_BFM.npz" || echo "Source 2 failed"
           fi
