@@ -46,14 +46,14 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          # STEP 1: Install PyTorch & torchvision FIRST (before chumpy downgrades numpy)
-          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-          # STEP 2: Install chumpy with build isolation disabled
+          # STEP 1: Install chumpy with build isolation disabled
           pip install chumpy==0.70 --no-build-isolation
-          # STEP 3: Install remaining dependencies
+          # STEP 2: Install all other dependencies
           pip install -r requirements.txt
-          # STEP 4: Verify torchvision is actually installed
-          python -c "import torchvision; print('Torchvision version:', torchvision.__version__)"
+          # STEP 3: Force reinstall MATCHING torch and torchvision versions from CPU index
+          pip install --force-reinstall torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cpu
+          # STEP 4: Verify torch + torchvision + NMS all work
+          python -c "import torch; import torchvision; from torchvision.ops import nms; print('Torch:', torch.__version__); print('Torchvision:', torchvision.__version__); print('NMS verified OK')"
 
       - name: Run Face Construction Script
         run: |
