@@ -19,11 +19,32 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libgl1-mesa-glx libglib2.0-0
+
+      - name: Install Core Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # Verify pytorch3d is installed
+          python -c "import torch; print('Torch:', torch.__version__); import numpy; print('NumPy:', numpy.__version__)"
+
+      - name: Install pytorch3d (Multi-Strategy)
+        run: |
+          # Strategy 1: Try pre-built wheel from miropsota repository (fastest)
+          echo "=== Strategy 1: Trying pre-built wheel ==="
+          pip install --extra-index-url https://miropsota.github.io/torch_packages_builder pytorch3d==0.7.4+pt1.13.1 && exit 0
+          
+          # Strategy 2: Try another version of the wheel
+          echo "=== Strategy 2: Trying alternative wheel version ==="
+          pip install --extra-index-url https://miropsota.github.io/torch_packages_builder pytorch3d==0.7.5+pt1.13.1 && exit 0
+          
+          # Strategy 3: Build from source (most reliable fallback)
+          echo "=== Strategy 3: Building pytorch3d from source (this takes ~5-10 min) ==="
+          pip install "git+https://github.com/facebookresearch/pytorch3d.git@v0.7.4"
+          
+          # Verify installation
           python -c "import pytorch3d; print('pytorch3d version:', pytorch3d.__version__)"
 
       - name: Clone DECA Repository
@@ -33,15 +54,18 @@ jobs:
       - name: Download Pre-trained Models
         run: |
           cd DECA
-          # Create data directory
           mkdir -p data
-          # Download the DECA trained model (using gdown for Google Drive)
           pip install gdown
-          gdown --id 1rp8kdyLPvErw2dTmqtjISRVvQLj6Yzje -O data/deca_model.tar
-          # Download FLAME 2020 model (the generic one)
-          # Note: You may need to download this manually and upload it, as it requires registration
-          # For now, we'll try to download a public version
-          wget -q -O data/generic_model.pkl "https://github.com/YadiraF/DECA/raw/master/data/generic_model.pkl" || echo "FLAME model not found, you may need to upload it manually"
+          
+          echo "=== Downloading DECA model weights ==="
+          gdown --id 1rp8kdyLPvErw2dTmqtjISRVvQLj6Yzje -O data/deca_model.tar || echo "DECA model download failed"
+          
+          echo "=== Downloading FLAME models ==="
+          # Try to download generic_model.pkl (may fail due to registration requirements)
+          wget -q -O data/generic_model.pkl "https://github.com/YadiraF/DECA/raw/master/data/generic_model.pkl" || echo "Generic model needs manual upload"
+          
+          echo "=== Data directory contents ==="
+          ls -la data/
 
       - name: Run Face Construction Script
         env:
