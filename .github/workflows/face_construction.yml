@@ -19,33 +19,28 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Download Models from Release
-        run: |
-          mkdir -p models
-          curl -L -o models/female_model.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/female_model.pkl
-          curl -L -o models/generic_model.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/generic_model.pkl
-          curl -L -o models/FLAME_masks.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/FLAME_masks.pkl
-          # TODO: Replace with the actual SMIRK weights URL once you upload them to your release
-          # curl -L -o models/smirk_weights.zip https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/smirk_weights.zip
-          # unzip -q models/smirk_weights.zip -d models/
-
-      - name: Clone SMIRK Repository
-        run: |
-          git clone https://github.com/georgeretsi/smirk.git
-
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # Install SMIRK as a package
-          cd smirk
-          pip install -e .
+
+      - name: Clone 3DDFA_v2 Repository
+        run: |
+          git clone https://github.com/cleardusk/3DDFA_V2.git
+
+      - name: Build 3DDFA_v2 Extensions
+        run: |
+          cd 3DDFA_V2
+          sh ./build.sh
+
+      - name: Download Pre-trained Weights
+        run: |
+          cd 3DDFA_V2
+          sh ./download_weights.sh
 
       - name: Run Face Construction Script
-        env:
-          CUDA_VISIBLE_DEVICES: ""
         run: |
-          python codes/face/run_smirk.py --input_dir Inputs/face --output_dir output --smirk_path ./smirk --model_path ./models/smirk_weights
+          python codes/face/run_3ddfa.py --input_dir Inputs/face --output_dir output --ddfa_path ./3DDFA_V2
 
       - name: Upload Output Artifact
         uses: actions/upload-artifact@v4
