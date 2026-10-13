@@ -37,9 +37,7 @@ jobs:
       - name: Install DECA Dependencies
         run: |
           pip install -r requirements.txt
-          python -c "import kornia; print('kornia:', kornia.__version__)"
-          python -c "import face_alignment; print('face_alignment OK')"
-          python -c "import chumpy; print('chumpy OK')"
+          pip install gdown
 
       - name: Install pytorch3d (Multi-Strategy)
         run: |
@@ -64,38 +62,43 @@ jobs:
           echo "=== Patching FaceAlignment to use CPU ==="
           sed -i "s/face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False)/face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False, device='cpu')/g" DECA/decalib/datasets/detectors.py
           
-          echo "=== Patching ALL cuda references to cpu (comprehensive) ==="
-          # Torch device calls
+          echo "=== Patching ALL cuda references to cpu ==="
           find DECA -name "*.py" -exec sed -i "s|torch.device('cuda:0')|torch.device('cpu')|g" {} \;
           find DECA -name "*.py" -exec sed -i 's|torch.device("cuda:0")|torch.device("cpu")|g' {} \;
           find DECA -name "*.py" -exec sed -i "s|torch.device('cuda')|torch.device('cpu')|g" {} \;
           find DECA -name "*.py" -exec sed -i 's|torch.device("cuda")|torch.device("cpu")|g' {} \;
-          # Bare string device assignments
           find DECA -name "*.py" -exec sed -i "s|= *'cuda:0'|= 'cpu'|g" {} \;
           find DECA -name "*.py" -exec sed -i 's|= *"cuda:0"|= "cpu"|g' {} \;
           find DECA -name "*.py" -exec sed -i "s|= *'cuda'|= 'cpu'|g" {} \;
           find DECA -name "*.py" -exec sed -i 's|= *"cuda"|= "cpu"|g' {} \;
-          # Argparse defaults
           find DECA -name "*.py" -exec sed -i "s|default='cuda'|default='cpu'|g" {} \;
           find DECA -name "*.py" -exec sed -i 's|default="cuda"|default="cpu"|g' {} \;
-          # Tensor .cuda() method calls
           find DECA -name "*.py" -exec sed -i "s|\.cuda()|.cpu()|g" {} \;
-          # Any remaining cuda:0 / cuda in string form (broad sweep)
           find DECA -name "*.py" -exec sed -i "s|'cuda:0'|'cpu'|g" {} \;
           find DECA -name "*.py" -exec sed -i 's|"cuda:0"|"cpu"|g' {} \;
-          
-          echo "=== Verification: device line in demo_reconstruct.py ==="
-          grep -n "device" DECA/demos/demo_reconstruct.py | head -10
-          echo "=== Verification: remaining cuda references across DECA ==="
-          grep -rn "'cuda'\|\"cuda\"\|cuda:0" DECA --include="*.py" | head -20 || echo "No bare cuda references found"
 
-      - name: Download Pre-trained Models
+      - name: Download All Required Data Files
         run: |
           cd DECA
           mkdir -p data
           
           echo "=== Downloading DECA model weights ==="
-          gdown --id 1rp8kdyLPvErw2dTmqtjISRVvQLj6Yzje -O data/deca_model.tar || echo "DECA model download failed"
+          gdown --id 1rp8kdyLPvErw2dTmqtjISRVvQLj6Yzje -O data/deca_model.tar || echo "deca_model.tar download failed"
+          
+          echo "=== Downloading FLAME_albedo_from_BFM.npz (multiple fallback sources) ==="
+          # Fallback 1: DECA's GitHub raw
+          curl -L -o data/FLAME_albedo_from_BFM.npz \
+            "https://github.com/YadiraF/DECA/raw/master/data/FLAME_albedo_from_BFM.npz" || echo "Source 1 failed"
+          
+          # Verify it's a real file (not an HTML error page)
+          FILE_SIZE=$(stat -c%s "data/FLAME_albedo_from_BFM.npz" 2>/dev/null || echo 0)
+          if [ "$FILE_SIZE" -lt 1000000 ]; then
+            echo "File too small ($FILE_SIZE bytes) - trying alternative source"
+            
+            # Fallback 2: Your GitHub release (if you upload it)
+            curl -L -o data/FLAME_albedo_from_BFM.npz \
+              "https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/FLAME_albedo_from_BFM.npz" || echo "Source 2 failed"
+          fi
           
           echo "=== Downloading FLAME models from your release ==="
           curl -L -o data/generic_model.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/generic_model.pkl || echo "Generic model download failed"
