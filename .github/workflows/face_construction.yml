@@ -54,15 +54,21 @@ jobs:
 
       - name: Patch MICA for CPU Execution
         run: |
-          echo "=== Before Patch ==="
-          grep -n "torch.device" MICA/demo.py
-          # Replace hardcoded CUDA device with CPU
-          sed -i "s/torch.device('cuda:0')/torch.device('cpu')/g" MICA/demo.py
-          sed -i 's/torch.device("cuda:0")/torch.device("cpu")/g' MICA/demo.py
-          sed -i "s/torch.device('cuda')/torch.device('cpu')/g" MICA/demo.py
-          sed -i 's/torch.device("cuda")/torch.device("cpu")/g' MICA/demo.py
-          echo "=== After Patch ==="
-          grep -n "torch.device" MICA/demo.py
+          echo "=== Patching MICA files for CPU ==="
+          # Patch demo.py
+          sed -i "s|torch.device('cuda:0')|torch.device('cpu')|g" MICA/demo.py || true
+          sed -i 's|torch.device("cuda:0")|torch.device("cpu")|g' MICA/demo.py || true
+          sed -i "s|torch.device('cuda')|torch.device('cpu')|g" MICA/demo.py || true
+          sed -i 's|torch.device("cuda")|torch.device("cpu")|g' MICA/demo.py || true
+          # Patch base_model.py
+          sed -i "s|torch.device('cuda:0')|torch.device('cpu')|g" MICA/micalib/base_model.py || true
+          sed -i 's|torch.device("cuda:0")|torch.device("cpu")|g' MICA/micalib/base_model.py || true
+          sed -i "s|torch.device('cuda')|torch.device('cpu')|g" MICA/micalib/base_model.py || true
+          sed -i 's|torch.device("cuda")|torch.device("cpu")|g' MICA/micalib/base_model.py || true
+          # Patch any other files that may reference cuda
+          find MICA -name "*.py" -exec sed -i "s|\.cuda()|\.cpu()|g" {} \; || true
+          echo "=== Patch complete. Verifying: ==="
+          grep -rn "torch.device" MICA/demo.py MICA/micalib/base_model.py || echo "No torch.device matches (may be OK)"
 
       - name: Run Face Construction Script
         run: |
