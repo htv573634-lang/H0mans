@@ -22,7 +22,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake libgl1-mesa-glx libglib2.0-0
+          sudo apt-get install -y build-essential cmake libgl1 libglib2.0-0 libsm6 libxext6 libxrender-dev
 
       - name: Install Core Dependencies
         run: |
@@ -32,19 +32,15 @@ jobs:
 
       - name: Install pytorch3d (Multi-Strategy)
         run: |
-          # Strategy 1: Try pre-built wheel from miropsota repository (fastest)
-          echo "=== Strategy 1: Trying pre-built wheel ==="
+          echo "=== Strategy 1: Trying pre-built wheel from miropsota ==="
           pip install --extra-index-url https://miropsota.github.io/torch_packages_builder pytorch3d==0.7.4+pt1.13.1 && exit 0
           
-          # Strategy 2: Try another version of the wheel
           echo "=== Strategy 2: Trying alternative wheel version ==="
           pip install --extra-index-url https://miropsota.github.io/torch_packages_builder pytorch3d==0.7.5+pt1.13.1 && exit 0
           
-          # Strategy 3: Build from source (most reliable fallback)
           echo "=== Strategy 3: Building pytorch3d from source (this takes ~5-10 min) ==="
           pip install "git+https://github.com/facebookresearch/pytorch3d.git@v0.7.4"
           
-          # Verify installation
           python -c "import pytorch3d; print('pytorch3d version:', pytorch3d.__version__)"
 
       - name: Clone DECA Repository
@@ -60,9 +56,9 @@ jobs:
           echo "=== Downloading DECA model weights ==="
           gdown --id 1rp8kdyLPvErw2dTmqtjISRVvQLj6Yzje -O data/deca_model.tar || echo "DECA model download failed"
           
-          echo "=== Downloading FLAME models ==="
-          # Try to download generic_model.pkl (may fail due to registration requirements)
-          wget -q -O data/generic_model.pkl "https://github.com/YadiraF/DECA/raw/master/data/generic_model.pkl" || echo "Generic model needs manual upload"
+          echo "=== Downloading FLAME models from your release ==="
+          curl -L -o data/generic_model.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/generic_model.pkl || echo "Generic model download failed"
+          curl -L -o data/female_model.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/female_model.pkl || echo "Female model download failed"
           
           echo "=== Data directory contents ==="
           ls -la data/
