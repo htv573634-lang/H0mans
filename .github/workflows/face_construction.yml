@@ -32,14 +32,11 @@ jobs:
 
       - name: Install pytorch3d (Multi-Strategy)
         run: |
-          echo "=== Strategy 1: Trying pre-built wheel from miropsota ==="
-          pip install --extra-index-url https://miropsota.github.io/torch_packages_builder pytorch3d==0.7.4+pt1.13.1 && exit 0
+          echo "=== Strategy 1: Pre-built CPU wheel (exact name from repo) ==="
+          pip install --extra-index-url https://miropsota.github.io/torch_packages_builder "pytorch3d==0.7.5+pt1.13.1cpu" && exit 0
           
-          echo "=== Strategy 2: Trying alternative wheel version ==="
-          pip install --extra-index-url https://miropsota.github.io/torch_packages_builder pytorch3d==0.7.5+pt1.13.1 && exit 0
-          
-          echo "=== Strategy 3: Building pytorch3d from source (this takes ~5-10 min) ==="
-          pip install "git+https://github.com/facebookresearch/pytorch3d.git@v0.7.4"
+          echo "=== Strategy 2: Build from source with --no-build-isolation ==="
+          pip install --no-build-isolation "git+https://github.com/facebookresearch/pytorch3d.git@v0.7.4"
           
           python -c "import pytorch3d; print('pytorch3d version:', pytorch3d.__version__)"
 
