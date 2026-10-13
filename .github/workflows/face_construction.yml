@@ -102,7 +102,7 @@ jobs:
             --input_dir Inputs/face \
             --output_dir output \
             --deca_path ./DECA \
-            --subdivide 2
+            --subdivide 1
 
       - name: Upload Output Artifact
         uses: actions/upload-artifact@v4
