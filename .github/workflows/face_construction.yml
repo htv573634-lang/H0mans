@@ -22,57 +22,30 @@ jobs:
       - name: Download Models from Release
         run: |
           mkdir -p models
-          echo "Downloading Female Model..."
           curl -L -o models/female_model.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/female_model.pkl
-          echo "Downloading Generic Model..."
           curl -L -o models/generic_model.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/generic_model.pkl
-          echo "Downloading FLAME Masks..."
           curl -L -o models/FLAME_masks.pkl https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/FLAME_masks.pkl
-          echo "Downloading MICA Weights..."
-          curl -L -o models/mica.tar https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/mica.tar
+          # TODO: Replace with the actual SMIRK weights URL once you upload them to your release
+          # curl -L -o models/smirk_weights.zip https://github.com/htv573634-lang/H0mans/releases/download/FemaleV1/smirk_weights.zip
+          # unzip -q models/smirk_weights.zip -d models/
 
-      - name: Download InsightFace Models
+      - name: Clone SMIRK Repository
         run: |
-          mkdir -p ~/.insightface/models
-          wget -q https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip -O /tmp/buffalo_l.zip
-          unzip -q /tmp/buffalo_l.zip -d ~/.insightface/models/
-          wget -q https://github.com/deepinsight/insightface/releases/download/v0.7/antelopev2.zip -O /tmp/antelopev2.zip
-          unzip -q /tmp/antelopev2.zip -d ~/.insightface/models/
-
-      - name: Clone MICA Repository
-        run: |
-          git clone https://github.com/Zielon/MICA.git
+          git clone https://github.com/georgeretsi/smirk.git
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install chumpy==0.70 --no-build-isolation
           pip install -r requirements.txt
-          pip install --force-reinstall torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cpu
-          pip install --force-reinstall "numpy==1.23.5" "opencv-python==4.7.0.72" "opencv-python-headless==4.6.0.66"
-          python -c "import numpy; print('NumPy:', numpy.__version__); import cv2; print('OpenCV:', cv2.__version__); import torch; import torchvision; from torchvision.ops import nms; print('Torch:', torch.__version__, '| Torchvision:', torchvision.__version__); print('ALL IMPORTS OK')"
-
-      - name: Patch MICA for CPU Execution
-        run: |
-          echo "=== Patching MICA files for CPU ==="
-          # Patch demo.py
-          sed -i "s|torch.device('cuda:0')|torch.device('cpu')|g" MICA/demo.py || true
-          sed -i 's|torch.device("cuda:0")|torch.device("cpu")|g' MICA/demo.py || true
-          sed -i "s|torch.device('cuda')|torch.device('cpu')|g" MICA/demo.py || true
-          sed -i 's|torch.device("cuda")|torch.device("cpu")|g' MICA/demo.py || true
-          # Patch base_model.py
-          sed -i "s|torch.device('cuda:0')|torch.device('cpu')|g" MICA/micalib/base_model.py || true
-          sed -i 's|torch.device("cuda:0")|torch.device("cpu")|g' MICA/micalib/base_model.py || true
-          sed -i "s|torch.device('cuda')|torch.device('cpu')|g" MICA/micalib/base_model.py || true
-          sed -i 's|torch.device("cuda")|torch.device("cpu")|g' MICA/micalib/base_model.py || true
-          # Patch any other files that may reference cuda
-          find MICA -name "*.py" -exec sed -i "s|\.cuda()|\.cpu()|g" {} \; || true
-          echo "=== Patch complete. Verifying: ==="
-          grep -rn "torch.device" MICA/demo.py MICA/micalib/base_model.py || echo "No torch.device matches (may be OK)"
+          # Install SMIRK as a package
+          cd smirk
+          pip install -e .
 
       - name: Run Face Construction Script
+        env:
+          CUDA_VISIBLE_DEVICES: ""
         run: |
-          python codes/face/run_mica.py --input_dir Inputs/face --output_dir output --mica_path ./MICA --model_path ./models/mica.tar
+          python codes/face/run_smirk.py --input_dir Inputs/face --output_dir output --smirk_path ./smirk --model_path ./models/smirk_weights
 
       - name: Upload Output Artifact
         uses: actions/upload-artifact@v4
