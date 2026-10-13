@@ -27,12 +27,24 @@ jobs:
       - name: Install Core Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install torch==1.13.1 torchvision==0.14.1 numpy==1.23.5
           python -c "import torch; print('Torch:', torch.__version__); import numpy; print('NumPy:', numpy.__version__)"
+
+      - name: Install chumpy (legacy FLAME loader)
+        run: |
+          pip install chumpy==0.70 --no-build-isolation
+
+      - name: Install DECA Dependencies
+        run: |
+          pip install -r requirements.txt
+          # Verify key imports
+          python -c "import kornia; print('kornia:', kornia.__version__)"
+          python -c "import face_alignment; print('face_alignment OK')"
+          python -c "import chumpy; print('chumpy OK')"
 
       - name: Install pytorch3d (Multi-Strategy)
         run: |
-          echo "=== Strategy 1: Pre-built CPU wheel (exact name from repo) ==="
+          echo "=== Strategy 1: Pre-built CPU wheel ==="
           pip install --extra-index-url https://miropsota.github.io/torch_packages_builder "pytorch3d==0.7.5+pt1.13.1cpu" && exit 0
           
           echo "=== Strategy 2: Build from source with --no-build-isolation ==="
@@ -48,7 +60,6 @@ jobs:
         run: |
           cd DECA
           mkdir -p data
-          pip install gdown
           
           echo "=== Downloading DECA model weights ==="
           gdown --id 1rp8kdyLPvErw2dTmqtjISRVvQLj6Yzje -O data/deca_model.tar || echo "DECA model download failed"
