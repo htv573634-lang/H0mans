@@ -116,7 +116,7 @@ jobs:
         run: |
           python -m venv gnm_env
           gnm_env/bin/pip install --upgrade pip
-          gnm_env/bin/pip install body-models[torch] trimesh numpy
+          gnm_env/bin/pip install body-models[torch] trimesh numpy pygltflib
 
       - name: Run GNM Organ Generation
         run: |
