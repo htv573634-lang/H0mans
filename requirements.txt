@@ -1,4 +1,4 @@
-# Core
+# Core (versions managed by pip for Python 3.11 compatibility)
 torch
 torchvision
 numpy==1.23.5
