@@ -1,6 +1,6 @@
-# Core (versions managed by pip for Python 3.11 compatibility)
-torch
-torchvision
+# Core
+torch==1.13.1
+torchvision==0.14.1
 numpy==1.23.5
 
 # DECA dependencies
@@ -17,6 +17,3 @@ omegaconf
 
 # FLAME model loading
 chumpy==0.70
-
-# GNM Head for internal organs
-body-models[torch]
