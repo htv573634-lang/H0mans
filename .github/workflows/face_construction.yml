@@ -1,4 +1,4 @@
-name: Face Construction Pipeline (DECA)
+name: Face Construction Pipeline (DECA + GNM Organs)
 
 on:
   workflow_dispatch:
@@ -102,7 +102,8 @@ jobs:
             --input_dir Inputs/face \
             --output_dir output \
             --deca_path ./DECA \
-            --subdivide 1
+            --subdivide 1 \
+            --scale 1000
 
       - name: Upload Output Artifact
         uses: actions/upload-artifact@v4
